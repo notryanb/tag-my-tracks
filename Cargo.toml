@@ -1,0 +1,15 @@
+[package]
+name = "tag-my-tracks"
+version = "0.1.0"
+authors = ["Ryan Blecher <notryanb@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+path = "src/main.rs"
+name = "tmt"
+
+[dependencies]
+id3 = "0.3"
+quicli = "0.4"
+structopt = "0.2"
+walkdir = "2"
