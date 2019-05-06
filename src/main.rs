@@ -10,7 +10,7 @@ use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
 #[derive(Debug, StructOpt)]
-struct Cli {
+pub struct Cli {
     #[structopt(parse(from_os_str))]
     path: PathBuf,
 
@@ -22,7 +22,7 @@ struct Cli {
 }
 
 #[derive(Debug, StructOpt)]
-enum Command {
+pub enum Command {
     #[structopt(name = "read")]
     Read {
         #[structopt(long="artist")]
@@ -77,55 +77,47 @@ fn main() -> CliResult {
     }
 
     if path.is_file() {
-        let mut tag = Tag::read_from_path(&path).unwrap();
-        
-        match &args.cmd {
-            Command::Read { artist, album, year } => {
-                if *artist {
-                    println!("Artist: {}", tag.artist().unwrap());
-                }
-                if *album {
-                    println!("Album: {}", tag.album().unwrap());
-                }
-                if *year {
-                    println!("Year: {}", tag.year().unwrap());
-                }
+        process_file(&args, &path);
+        // let mut tag = Tag::read_from_path(&path).unwrap();
 
-            },
-            Command::Write { artist, album, year} => {
-                if artist.is_some() { 
-                    tag.set_artist(artist.clone().unwrap());
-                }
+        // match &args.cmd {
+        //     Command::Read { artist, album, year } => {
+        //         if *artist {
+        //             println!("Artist: {}", tag.artist().unwrap());
+        //         }
+        //         if *album {
+        //             println!("Album: {}", tag.album().unwrap());
+        //         }
+        //         if *year {
+        //             println!("Year: {}", tag.year().unwrap());
+        //         }
 
-                if album.is_some() {
-                    tag.set_album(album.clone().unwrap());
-                }
+        //     },
+        //     Command::Write { artist, album, year} => {
+        //         if artist.is_some() {
+        //             tag.set_artist(artist.clone().unwrap());
+        //         }
 
-                if year.is_some() {
-                    tag.set_year(year.unwrap());
-                }
-                
+        //         if album.is_some() {
+        //             tag.set_album(album.clone().unwrap());
+        //         }
 
-                tag.write_to_path(&path, Version::Id3v24)?;
-            }
-        }
+        //         if year.is_some() {
+        //             tag.set_year(year.unwrap());
+        //         }
+
+
+        //         tag.write_to_path(&path, Version::Id3v24)?;
+        //     }
+        // }
 
 
     } else {
-        let mut file_count = 0.0;
         let mp3_files = get_all_files_in_directory(&args.path);
-        let total_files = mp3_files.clone().into_iter().count() as f32;
-
-        println!("Total Files: {}", &total_files);
-
-        for e in mp3_files.into_iter() {
-            let progress = ((file_count / total_files) * 100.0).round();
-            println!(
-                "Count: {}, Progress: {}%, File: {:?}",
-                &file_count, progress, &e
-                );
-            file_count += 1.0;
-        };
+        for file in mp3_files.into_iter() {
+            let path = PathBuf::from(file);
+            process_file(&args, &path);
+        }
     }
 
 
@@ -153,4 +145,39 @@ pub fn get_all_files_in_directory(directory: &PathBuf) -> Vec<String> {
         .filter_map(|e| e.ok())
         .filter_map(|e| get_mp3_file_paths(&e))
         .collect()
+}
+
+pub fn process_file(args: &Cli, path: &PathBuf) { 
+    let mut tag = Tag::read_from_path(&path).unwrap();
+    
+    match &args.cmd {
+        Command::Read { artist, album, year } => {
+            if *artist {
+                println!("Artist: {}", tag.artist().unwrap());
+            }
+            if *album {
+                println!("Album: {}", tag.album().unwrap());
+            }
+            if *year {
+                println!("Year: {}", tag.year().unwrap());
+            }
+
+        },
+        Command::Write { artist, album, year} => {
+            if artist.is_some() { 
+                tag.set_artist(artist.clone().unwrap());
+            }
+
+            if album.is_some() {
+                tag.set_album(album.clone().unwrap());
+            }
+
+            if year.is_some() {
+                tag.set_year(year.unwrap());
+            }
+            
+
+            tag.write_to_path(&path, Version::Id3v24).unwrap();
+        }
+    }
 }
