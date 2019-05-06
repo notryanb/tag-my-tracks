@@ -14,12 +14,40 @@ struct Cli {
     #[structopt(parse(from_os_str))]
     path: PathBuf,
 
-    #[structopt(long="artist")]
-    artist: Option<String>,
+    #[structopt(subcommand)]
+    cmd: Command,
 
     #[structopt(flatten)]
     verbosity: Verbosity,
 }
+
+#[derive(Debug, StructOpt)]
+enum Command {
+    #[structopt(name = "read")]
+    Read {
+        #[structopt(long="artist")]
+        artist: bool,
+
+        #[structopt(long="album")]
+        album: bool,
+
+        #[structopt(long="year")]
+        year: bool,
+    },
+
+    #[structopt(name = "write")]
+    Write {
+        #[structopt(long="artist")]
+        artist: Option<String>,
+
+        #[structopt(long="album")]
+        album: Option<String>,
+
+        #[structopt(long="year")]
+        year: Option<i32>,
+    },
+}
+
 
 
 /*
@@ -50,18 +78,39 @@ fn main() -> CliResult {
 
     if path.is_file() {
         let mut tag = Tag::read_from_path(&path).unwrap();
-        match &args.artist {
-            Some(artist_name) =>  {
-                println!("You will rename the track to this artist {}", artist_name); 
-                tag.set_artist(artist_name.to_string());
-                println!("Tag Artist: {}", tag.artist().unwrap());
+        
+        match &args.cmd {
+            Command::Read { artist, album, year } => {
+                if *artist {
+                    println!("Artist: {}", tag.artist().unwrap());
+                }
+                if *album {
+                    println!("Album: {}", tag.album().unwrap());
+                }
+                if *year {
+                    println!("Year: {}", tag.year().unwrap());
+                }
+
             },
-            None => { 
-                let artist = tag.artist().unwrap();
-                println!("Artist {}", artist);
+            Command::Write { artist, album, year} => {
+                if artist.is_some() { 
+                    tag.set_artist(artist.clone().unwrap());
+                }
+
+                if album.is_some() {
+                    tag.set_album(album.clone().unwrap());
+                }
+
+                if year.is_some() {
+                    tag.set_year(year.unwrap());
+                }
+                
+
+                tag.write_to_path(&path, Version::Id3v24)?;
             }
         }
-        tag.write_to_path(&path, Version::Id3v24)?;
+
+
     } else {
         let mut file_count = 0.0;
         let mp3_files = get_all_files_in_directory(&args.path);
