@@ -1,16 +1,21 @@
+extern crate id3;
 extern crate quicli;
 extern crate structopt;
 extern crate walkdir;
 
+use id3::{Tag, Version};
 use quicli::prelude::*;
-use std::path::Path;
+use std::path::PathBuf;
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
 #[derive(Debug, StructOpt)]
 struct Cli {
-    // The absolute filepath you want to import all mp3s
-    track_source: String,
+    #[structopt(parse(from_os_str))]
+    path: PathBuf,
+
+    #[structopt(long="artist")]
+    artist: Option<String>,
 
     #[structopt(flatten)]
     verbosity: Verbosity,
@@ -37,25 +42,43 @@ struct Cli {
 
 fn main() -> CliResult {
     let args = Cli::from_args();
+    let path = &args.path;
 
-    if !Path::new(&args.track_source).exists() {
-        warn!("Error: {:?} is not a valid path", args.track_source);
+    if !path.exists() {
+        warn!("Error: {:?} is not a valid path", &path);
     }
 
-    let mut file_count = 0.0;
-    let mp3_files = get_all_files_in_directory(&args.track_source);
-    let total_files = mp3_files.clone().into_iter().count() as f32;
+    if path.is_file() {
+        let mut tag = Tag::read_from_path(&path).unwrap();
+        match &args.artist {
+            Some(artist_name) =>  {
+                println!("You will rename the track to this artist {}", artist_name); 
+                tag.set_artist(artist_name.to_string());
+                println!("Tag Artist: {}", tag.artist().unwrap());
+            },
+            None => { 
+                let artist = tag.artist().unwrap();
+                println!("Artist {}", artist);
+            }
+        }
+        tag.write_to_path(&path, Version::Id3v24)?;
+    } else {
+        let mut file_count = 0.0;
+        let mp3_files = get_all_files_in_directory(&args.path);
+        let total_files = mp3_files.clone().into_iter().count() as f32;
 
-    println!("Total Files: {}", &total_files);
+        println!("Total Files: {}", &total_files);
 
-    for e in mp3_files.into_iter() {
-        let progress = ((file_count / total_files) * 100.0).round();
-        println!(
-            "Count: {}, Progress: {}%, File: {:?}",
-            &file_count, progress, &e
-        );
-        file_count += 1.0;
-    };
+        for e in mp3_files.into_iter() {
+            let progress = ((file_count / total_files) * 100.0).round();
+            println!(
+                "Count: {}, Progress: {}%, File: {:?}",
+                &file_count, progress, &e
+                );
+            file_count += 1.0;
+        };
+    }
+
 
     Ok(())
 }
@@ -75,7 +98,7 @@ pub fn get_mp3_file_paths(entry: &DirEntry) -> Option<String> {
     }
 }
 
-pub fn get_all_files_in_directory(directory: &String) -> Vec<String> {
+pub fn get_all_files_in_directory(directory: &PathBuf) -> Vec<String> {
     WalkDir::new(directory)
         .into_iter()
         .filter_map(|e| e.ok())
