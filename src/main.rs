@@ -1,20 +1,53 @@
+extern crate id3;
 extern crate quicli;
 extern crate structopt;
 extern crate walkdir;
 
+use id3::{Tag, Version};
 use quicli::prelude::*;
-use std::path::Path;
+use std::path::PathBuf;
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
 #[derive(Debug, StructOpt)]
-struct Cli {
-    // The absolute filepath you want to import all mp3s
-    track_source: String,
+pub struct Cli {
+    #[structopt(parse(from_os_str))]
+    path: PathBuf,
+
+    #[structopt(subcommand)]
+    cmd: Command,
 
     #[structopt(flatten)]
     verbosity: Verbosity,
 }
+
+#[derive(Debug, StructOpt)]
+pub enum Command {
+    #[structopt(name = "read")]
+    Read {
+        #[structopt(long="artist")]
+        artist: bool,
+
+        #[structopt(long="album")]
+        album: bool,
+
+        #[structopt(long="year")]
+        year: bool,
+    },
+
+    #[structopt(name = "write")]
+    Write {
+        #[structopt(long="artist")]
+        artist: Option<String>,
+
+        #[structopt(long="album")]
+        album: Option<String>,
+
+        #[structopt(long="year")]
+        year: Option<i32>,
+    },
+}
+
 
 
 /*
@@ -37,25 +70,22 @@ struct Cli {
 
 fn main() -> CliResult {
     let args = Cli::from_args();
+    let path = &args.path;
 
-    if !Path::new(&args.track_source).exists() {
-        warn!("Error: {:?} is not a valid path", args.track_source);
+    if !path.exists() {
+        warn!("Error: {:?} is not a valid path", &path);
     }
 
-    let mut file_count = 0.0;
-    let mp3_files = get_all_files_in_directory(&args.track_source);
-    let total_files = mp3_files.clone().into_iter().count() as f32;
+    if path.is_file() {
+        process_file(&args, &path);
+    } else {
+        let mp3_files = get_all_files_in_directory(&args.path);
+        for file in mp3_files.into_iter() {
+            let path = PathBuf::from(file);
+            process_file(&args, &path);
+        }
+    }
 
-    println!("Total Files: {}", &total_files);
-
-    for e in mp3_files.into_iter() {
-        let progress = ((file_count / total_files) * 100.0).round();
-        println!(
-            "Count: {}, Progress: {}%, File: {:?}",
-            &file_count, progress, &e
-        );
-        file_count += 1.0;
-    };
 
     Ok(())
 }
@@ -75,10 +105,55 @@ pub fn get_mp3_file_paths(entry: &DirEntry) -> Option<String> {
     }
 }
 
-pub fn get_all_files_in_directory(directory: &String) -> Vec<String> {
+pub fn get_all_files_in_directory(directory: &PathBuf) -> Vec<String> {
     WalkDir::new(directory)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter_map(|e| get_mp3_file_paths(&e))
         .collect()
+}
+
+pub fn process_file(args: &Cli, path: &PathBuf) { 
+    let mut tag = Tag::read_from_path(&path).unwrap();
+    
+    match &args.cmd {
+        Command::Read { artist, album, year } => {
+            if *artist {
+                match tag.artist() {
+                    Some(artist) => println!("Artist: {}", artist),
+                    None => println!("--"),
+                }
+            }
+            if *album {
+                match tag.album() {
+                    Some(album) => println!("Album: {}", album),
+                    None => println!("--"),
+                }
+            }
+            if *year {
+                match tag.year() {
+                    Some(year) => println!("Year: {}", year),
+                    None => println!("--"),
+                }
+                
+            }
+
+        },
+        Command::Write { artist, album, year} => {
+            if artist.is_some() { 
+                tag.set_artist(artist.clone().unwrap());
+            }
+
+            if album.is_some() {
+                tag.set_album(album.clone().unwrap());
+            }
+
+            if year.is_some() {
+                tag.set_year(year.unwrap());
+            }
+            
+
+            tag.write_to_path(&path, Version::Id3v24).unwrap();
+        }
+    }
 }
