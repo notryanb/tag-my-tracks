@@ -78,40 +78,6 @@ fn main() -> CliResult {
 
     if path.is_file() {
         process_file(&args, &path);
-        // let mut tag = Tag::read_from_path(&path).unwrap();
-
-        // match &args.cmd {
-        //     Command::Read { artist, album, year } => {
-        //         if *artist {
-        //             println!("Artist: {}", tag.artist().unwrap());
-        //         }
-        //         if *album {
-        //             println!("Album: {}", tag.album().unwrap());
-        //         }
-        //         if *year {
-        //             println!("Year: {}", tag.year().unwrap());
-        //         }
-
-        //     },
-        //     Command::Write { artist, album, year} => {
-        //         if artist.is_some() {
-        //             tag.set_artist(artist.clone().unwrap());
-        //         }
-
-        //         if album.is_some() {
-        //             tag.set_album(album.clone().unwrap());
-        //         }
-
-        //         if year.is_some() {
-        //             tag.set_year(year.unwrap());
-        //         }
-
-
-        //         tag.write_to_path(&path, Version::Id3v24)?;
-        //     }
-        // }
-
-
     } else {
         let mp3_files = get_all_files_in_directory(&args.path);
         for file in mp3_files.into_iter() {
@@ -153,13 +119,23 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
     match &args.cmd {
         Command::Read { artist, album, year } => {
             if *artist {
-                println!("Artist: {}", tag.artist().unwrap());
+                match tag.artist() {
+                    Some(artist) => println!("Artist: {}", artist),
+                    None => println!("--"),
+                }
             }
             if *album {
-                println!("Album: {}", tag.album().unwrap());
+                match tag.album() {
+                    Some(album) => println!("Album: {}", album),
+                    None => println!("--"),
+                }
             }
             if *year {
-                println!("Year: {}", tag.year().unwrap());
+                match tag.year() {
+                    Some(year) => println!("Year: {}", year),
+                    None => println!("--"),
+                }
+                
             }
 
         },
