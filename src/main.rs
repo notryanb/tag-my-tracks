@@ -165,34 +165,78 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
                 tag.write_to_path(&path, Version::Id3v24).unwrap();
             }
         },
-        _error => match &args.cmd {
-            Command::Write {
-                artist,
-                album,
-                title,
-                year,
-            } => {
-                let mut new_tag = Tag::new();
-                if artist.is_some() {
-                    new_tag.set_artist(artist.clone().unwrap());
-                }
+        Err(_err) => {
+            // Check if the error is instead related to parsing a ID3v1 tag.
+            let mut file = std::fs::File::open(path).unwrap();
+            let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
-                if album.is_some() {
-                    new_tag.set_album(album.clone().unwrap());
-                }
+            let mut new_tag = Tag::new();
 
-                if title.is_some() {
-                    new_tag.set_title(title.clone().unwrap());
-                }
+            if id3_v1_tag.is_ok() {
+                let id3_v1_tag = id3_v1_tag.unwrap();
+                let removed_tag = id3::v1::Tag::remove(&mut file);
 
-                if year.is_some() {
-                    new_tag.set_year(year.unwrap());
-                }
+                match removed_tag {
+                    Ok(_) => {
+                        // Now we must convert from Id3v1 to Id3v2.4
+                        println!("Removed Id3v1 tag from {:?}", path);
+                        match id3_v1_tag.genre() {
+                            Some(genre) => {
+                                println!("Genre: {:?}", genre);
+                                new_tag.set_genre(genre);
+                            },
+                            None => {}
+                        }
 
-                println!("Writing to {:?}", &path);
-                new_tag.write_to_path(&path, Version::Id3v24).unwrap();
+                        new_tag.set_artist(id3_v1_tag.artist);
+                        new_tag.set_title(id3_v1_tag.title);
+                        new_tag.set_album(id3_v1_tag.album);
+                        new_tag.set_year(id3_v1_tag.year.parse::<i32>().unwrap());
+
+                        match id3_v1_tag.track {
+                            Some(track_num) => {
+                                new_tag.set_track(track_num as u32);
+                            },
+                            None => {}
+                        }
+
+                        
+                        println!("Comment: {:?}", id3_v1_tag.comment);
+                        new_tag.write_to_path(&path, Version::Id3v24).unwrap();
+                        println!("Converted Id3v1 tag to Id3v2.4")
+                    },
+                    Err(err) => println!("Error removing Id3v1 Tag from {:?}: {:?}", path, err)
+                }
             }
-            _ => println!("Error parsing tag"),
-        },
+
+            match &args.cmd {
+                Command::Write {
+                    artist,
+                    album,
+                    title,
+                    year,
+                } => {
+                    if artist.is_some() {
+                        new_tag.set_artist(artist.clone().unwrap());
+                    }
+
+                    if album.is_some() {
+                        new_tag.set_album(album.clone().unwrap());
+                    }
+
+                    if title.is_some() {
+                        new_tag.set_title(title.clone().unwrap());
+                    }
+
+                    if year.is_some() {
+                        new_tag.set_year(year.unwrap());
+                    }
+
+                    println!("Writing to {:?}", &path);
+                    new_tag.write_to_path(&path, Version::Id3v24).unwrap();
+                }
+                _ => println!("Error parsing tag"),
+            }
+        }
     }
 }
