@@ -25,48 +25,34 @@ pub struct Cli {
 pub enum Command {
     #[structopt(name = "read")]
     Read {
-        #[structopt(long="artist")]
+        #[structopt(long = "artist")]
         artist: bool,
 
-        #[structopt(long="album")]
+        #[structopt(long = "album")]
         album: bool,
 
-        #[structopt(long="year")]
+        #[structopt(long = "title")]
+        title: bool,
+
+        #[structopt(long = "year")]
         year: bool,
     },
 
     #[structopt(name = "write")]
     Write {
-        #[structopt(long="artist")]
+        #[structopt(long = "artist")]
         artist: Option<String>,
 
-        #[structopt(long="album")]
+        #[structopt(long = "album")]
         album: Option<String>,
 
-        #[structopt(long="year")]
+        #[structopt(long = "title")]
+        title: Option<String>,
+
+        #[structopt(long = "year")]
         year: Option<i32>,
     },
 }
-
-
-
-/*
-    Example usege
-    ---
-    - Get default track info (artist, album, track title, year): `tmt ./song.mp3`
-    - Get artist on track: `tmt ./song.mp3 --artist`
-    - Get artist and album on track: `tmt ./song.mp3 --artist --album`
-    - Set artist on track: `tmt ./song.mp3 --artist=Fugazi`
-    - Set artist and album on track: `tmt ./song.mp3 --artist="Fugazi" --album="13 Songs"`
-
-    All Sets for a directory should confirm "are you sure you want the following settings for all
-    mp3 tracks in the following directory {}?"
-    - Get default track info for each in directory (artist, album, track title, year): `tmt ./Fugazi`
-    - Get artist on each track in directory: `tmt ./Fugazi --artist`
-    - Get artist and album on track in directory: `tmt ./Fugazi --artist --album`
-    - Set artist on track: `tmt ./Fugazi --artist=Fugazi`
-    - Set artist and album on track: `tmt ./Fugazi --artist="Fugazi" --album="13 Songs"`
-*/
 
 fn main() -> CliResult {
     let args = Cli::from_args();
@@ -85,7 +71,6 @@ fn main() -> CliResult {
             process_file(&args, &path);
         }
     }
-
 
     Ok(())
 }
@@ -113,47 +98,101 @@ pub fn get_all_files_in_directory(directory: &PathBuf) -> Vec<String> {
         .collect()
 }
 
-pub fn process_file(args: &Cli, path: &PathBuf) { 
-    let mut tag = Tag::read_from_path(&path).unwrap();
-    
-    match &args.cmd {
-        Command::Read { artist, album, year } => {
-            if *artist {
-                match tag.artist() {
-                    Some(artist) => println!("Artist: {}", artist),
-                    None => println!("--"),
-                }
-            }
-            if *album {
-                match tag.album() {
-                    Some(album) => println!("Album: {}", album),
-                    None => println!("--"),
-                }
-            }
-            if *year {
-                match tag.year() {
-                    Some(year) => println!("Year: {}", year),
-                    None => println!("--"),
-                }
-                
-            }
+pub fn process_file(args: &Cli, path: &PathBuf) {
+    let possible_tag = Tag::read_from_path(&path);
 
+    match possible_tag {
+        Ok(mut tag) => match &args.cmd {
+            Command::Read {
+                artist,
+                album,
+                title,
+                year,
+            } => {
+                if *artist {
+                    match tag.artist() {
+                        Some(artist) => println!("Artist: {}", artist),
+                        None => println!("Artist: --"),
+                    }
+                }
+
+                if *album {
+                    match tag.album() {
+                        Some(album) => println!("Album: {}", album),
+                        None => println!("Album: --"),
+                    }
+                }
+
+                if *title {
+                    match tag.title() {
+                        Some(title) => println!("Title: {}", title),
+                        None => println!("Title: --"),
+                    }
+                }
+
+                if *year {
+                    match tag.year() {
+                        Some(year) => println!("Year: {}", year),
+                        None => println!("Year: --"),
+                    }
+                }
+
+                println!("----------------")
+            }
+            Command::Write {
+                artist,
+                album,
+                title,
+                year,
+            } => {
+                if artist.is_some() {
+                    tag.set_artist(artist.clone().unwrap());
+                }
+
+                if album.is_some() {
+                    tag.set_album(album.clone().unwrap());
+                }
+
+                if title.is_some() {
+                    tag.set_title(title.clone().unwrap());
+                }
+
+                if year.is_some() {
+                    tag.set_year(year.unwrap());
+                }
+
+                println!("Writing to {:?}", &path);
+                tag.write_to_path(&path, Version::Id3v24).unwrap();
+            }
         },
-        Command::Write { artist, album, year} => {
-            if artist.is_some() { 
-                tag.set_artist(artist.clone().unwrap());
-            }
+        _error => match &args.cmd {
+            Command::Write {
+                artist,
+                album,
+                title,
+                year,
+            } => {
+                let mut new_tag = Tag::new();
+                if artist.is_some() {
+                    new_tag.set_artist(artist.clone().unwrap());
+                }
 
-            if album.is_some() {
-                tag.set_album(album.clone().unwrap());
-            }
+                if album.is_some() {
+                    new_tag.set_album(album.clone().unwrap());
+                }
 
-            if year.is_some() {
-                tag.set_year(year.unwrap());
-            }
-            
+                if title.is_some() {
+                    new_tag.set_title(title.clone().unwrap());
+                }
 
-            tag.write_to_path(&path, Version::Id3v24).unwrap();
-        }
+                if year.is_some() {
+                    new_tag.set_year(year.unwrap());
+                }
+
+                println!("Writing to {:?}", &path);
+                new_tag.write_to_path(&path, Version::Id3v24).unwrap();
+            }
+            _ => println!("Error parsing tag"),
+        },
     }
 }
