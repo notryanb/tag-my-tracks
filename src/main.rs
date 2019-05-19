@@ -65,11 +65,6 @@ fn main() -> CliResult {
     if path.is_file() {
         process_file(&args, &path);
     } else {
-        // let mp3_files = get_all_files_in_directory(&args.path);
-        // for file in mp3_files.into_iter() {
-        //     let path = PathBuf::from(file);
-        //     process_file(&args, &path);
-        // }
         let mp3_paths = get_all_files_in_directory(&args.path);
         for path in mp3_paths.into_iter() {
             process_file(&args, &path);
@@ -78,7 +73,6 @@ fn main() -> CliResult {
 
     Ok(())
 }
-
 
 // Returns the file path if it's a .mp3 file or None.
 pub fn file_paths_mp3(dir_entry: &DirEntry) -> Option<PathBuf> {
@@ -190,7 +184,7 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
                             Some(genre) => {
                                 println!("Genre: {:?}", genre);
                                 new_tag.set_genre(genre);
-                            },
+                            }
                             None => {}
                         }
 
@@ -202,16 +196,15 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
                         match id3_v1_tag.track {
                             Some(track_num) => {
                                 new_tag.set_track(track_num as u32);
-                            },
+                            }
                             None => {}
                         }
 
-                        
                         println!("Comment: {:?}", id3_v1_tag.comment);
                         new_tag.write_to_path(&path, Version::Id3v24).unwrap();
                         println!("Converted Id3v1 tag to Id3v2.4")
-                    },
-                    Err(err) => println!("Error removing Id3v1 Tag from {:?}: {:?}", path, err)
+                    }
+                    Err(err) => println!("Error removing Id3v1 Tag from {:?}: {:?}", path, err),
                 }
             }
 
