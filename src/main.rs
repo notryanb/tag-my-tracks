@@ -5,7 +5,7 @@ extern crate walkdir;
 
 use id3::{Tag, Version};
 use quicli::prelude::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
@@ -65,9 +65,13 @@ fn main() -> CliResult {
     if path.is_file() {
         process_file(&args, &path);
     } else {
-        let mp3_files = get_all_files_in_directory(&args.path);
-        for file in mp3_files.into_iter() {
-            let path = PathBuf::from(file);
+        // let mp3_files = get_all_files_in_directory(&args.path);
+        // for file in mp3_files.into_iter() {
+        //     let path = PathBuf::from(file);
+        //     process_file(&args, &path);
+        // }
+        let mp3_paths = get_all_files_in_directory(&args.path);
+        for path in mp3_paths.into_iter() {
             process_file(&args, &path);
         }
     }
@@ -75,26 +79,27 @@ fn main() -> CliResult {
     Ok(())
 }
 
-/// Returns the file path if it's a .mp3 file or None.
-pub fn get_mp3_file_paths(entry: &DirEntry) -> Option<String> {
-    match entry.path().extension() {
-        Some(ext) => match ext.to_str() {
-            Some(exxt) if exxt == "mp3" => match entry.path().to_str() {
-                Some(p) => Some(p.to_string()),
-                None => None,
-            },
-            Some(_) => None,
-            None => None,
-        },
+
+// Returns the file path if it's a .mp3 file or None.
+pub fn file_paths_mp3(dir_entry: &DirEntry) -> Option<PathBuf> {
+    let path = dir_entry.path();
+    match &path.extension() {
+        Some(extension) => {
+            if *extension == std::ffi::OsStr::new("mp3") {
+                Some(path.to_path_buf())
+            } else {
+                None
+            }
+        }
         None => None,
     }
 }
 
-pub fn get_all_files_in_directory(directory: &PathBuf) -> Vec<String> {
+pub fn get_all_files_in_directory(directory: &Path) -> Vec<PathBuf> {
     WalkDir::new(directory)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter_map(|e| get_mp3_file_paths(&e))
+        .filter_map(|e| file_paths_mp3(&e))
         .collect()
 }
 
@@ -170,6 +175,7 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
             let mut file = std::fs::File::open(path).unwrap();
             let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
+            dbg!(&id3_v1_tag);
             let mut new_tag = Tag::new();
 
             if id3_v1_tag.is_ok() {
