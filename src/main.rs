@@ -16,14 +16,12 @@ pub struct Cli {
 
     #[structopt(subcommand)]
     cmd: Command,
-
-    #[structopt(flatten)]
-    verbosity: Verbosity,
 }
 
 #[derive(Debug, StructOpt)]
+#[structopt(name = "Command", about = "Read or write fields from the ID3 Tags for a given path.")]
 pub enum Command {
-    #[structopt(name = "read")]
+    #[structopt(name = "read", help = "Reads the requested fields from the ID3 tag(s) specified in the path")]
     Read {
         #[structopt(long = "artist")]
         artist: bool,
@@ -38,7 +36,7 @@ pub enum Command {
         year: bool,
     },
 
-    #[structopt(name = "write")]
+    #[structopt(name = "write", help = "Writes the requested fields and their values to ID3v2.4 tag(s) specified in the path")]
     Write {
         #[structopt(long = "artist")]
         artist: Option<String>,
@@ -54,6 +52,7 @@ pub enum Command {
     },
 }
 
+// TODO - Better error handling
 fn main() -> CliResult {
     let args = Cli::from_args();
     let path = &args.path;
@@ -65,7 +64,7 @@ fn main() -> CliResult {
     if path.is_file() {
         process_file(&args, &path);
     } else {
-        let mp3_paths = get_all_files_in_directory(&args.path);
+        let mp3_paths = get_all_mp3_files_in_directory(&args.path);
         for path in mp3_paths.into_iter() {
             process_file(&args, &path);
         }
@@ -75,7 +74,7 @@ fn main() -> CliResult {
 }
 
 // Returns the file path if it's a .mp3 file or None.
-pub fn file_paths_mp3(dir_entry: &DirEntry) -> Option<PathBuf> {
+pub fn mp3_file_paths(dir_entry: &DirEntry) -> Option<PathBuf> {
     let path = dir_entry.path();
     match &path.extension() {
         Some(extension) => {
@@ -89,14 +88,26 @@ pub fn file_paths_mp3(dir_entry: &DirEntry) -> Option<PathBuf> {
     }
 }
 
-pub fn get_all_files_in_directory(directory: &Path) -> Vec<PathBuf> {
+pub fn get_all_mp3_files_in_directory(directory: &Path) -> Vec<PathBuf> {
     WalkDir::new(directory)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter_map(|e| file_paths_mp3(&e))
+        .filter_map(|e| mp3_file_paths(&e))
         .collect()
 }
 
+/* 
+    TODO: 
+        - Offer an option to Read the ID3 version as well as convert ID3v1 to ID3v2.3 or ID3v2.4
+        
+        - Need to DRY this out and change the logic.
+            - Try to Parse as ID32.4 first
+            - If Fails, try to parse as ID3v1
+            - Read / Write appropriately
+            - Auto Convert ID3v1 to ID3v2.4 on all writes? (Provide override?)
+            - 
+        
+*/
 pub fn process_file(args: &Cli, path: &PathBuf) {
     let possible_tag = Tag::read_from_path(&path);
 
