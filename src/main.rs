@@ -19,9 +19,15 @@ pub struct Cli {
 }
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "Command", about = "Read or write fields from the ID3 Tags for a given path.")]
+#[structopt(
+    name = "Command",
+    about = "Read or write fields from the ID3 Tags for a given path."
+)]
 pub enum Command {
-    #[structopt(name = "read", help = "Reads the requested fields from the ID3 tag(s) specified in the path")]
+    #[structopt(
+        name = "read",
+        help = "Reads the requested fields from the ID3 tag(s) specified in the path"
+    )]
     Read {
         #[structopt(long = "artist")]
         artist: bool,
@@ -36,7 +42,10 @@ pub enum Command {
         year: bool,
     },
 
-    #[structopt(name = "write", help = "Writes the requested fields and their values to ID3v2.4 tag(s) specified in the path")]
+    #[structopt(
+        name = "write",
+        help = "Writes the requested fields and their values to ID3v2.4 tag(s) specified in the path"
+    )]
     Write {
         #[structopt(long = "artist")]
         artist: Option<String>,
@@ -96,17 +105,17 @@ pub fn get_all_mp3_files_in_directory(directory: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/* 
-    TODO: 
+/*
+    TODO:
         - Offer an option to Read the ID3 version as well as convert ID3v1 to ID3v2.3 or ID3v2.4
-        
+
         - Need to DRY this out and change the logic.
             - Try to Parse as ID32.4 first
             - If Fails, try to parse as ID3v1
             - Read / Write appropriately
             - Auto Convert ID3v1 to ID3v2.4 on all writes? (Provide override?)
-            - 
-        
+            -
+
 */
 pub fn process_file(args: &Cli, path: &PathBuf) {
     let possible_tag = Tag::read_from_path(&path);
@@ -183,6 +192,7 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
             dbg!(&id3_v1_tag);
             let mut new_tag = Tag::new();
 
+            // Logic for converting / writing ID3v1 to ID3v2.4
             if id3_v1_tag.is_ok() {
                 let id3_v1_tag = id3_v1_tag.unwrap();
                 let removed_tag = id3::v1::Tag::remove(&mut file);
@@ -212,13 +222,22 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
                         }
 
                         println!("Comment: {:?}", id3_v1_tag.comment);
-                        new_tag.write_to_path(&path, Version::Id3v24).unwrap();
+                        let convert_tag_result = new_tag.write_to_path(&path, Version::Id3v24);
+                        match convert_tag_result {
+                            Ok(_) => {
+                                println!("Successfully converted {:?} form v1 tag to v2.4", &path)
+                            }
+                            Err(err) => println!("Error converting from v1 tag to v2.4: {:?}", err),
+                        }
+
                         println!("Converted Id3v1 tag to Id3v2.4")
                     }
+
                     Err(err) => println!("Error removing Id3v1 Tag from {:?}: {:?}", path, err),
                 }
             }
 
+            // When the file already has an ID3v2+ tag.
             match &args.cmd {
                 Command::Write {
                     artist,
