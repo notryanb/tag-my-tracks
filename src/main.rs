@@ -28,37 +28,43 @@ pub enum Command {
         name = "read",
         help = "Reads the requested fields from the ID3 tag(s) specified in the path"
     )]
-    Read {
-        #[structopt(long = "artist")]
-        artist: bool,
-
-        #[structopt(long = "album")]
-        album: bool,
-
-        #[structopt(long = "title")]
-        title: bool,
-
-        #[structopt(long = "year")]
-        year: bool,
-    },
+    Read(ReadFields),
 
     #[structopt(
         name = "write",
         help = "Writes the requested fields and their values to ID3v2.4 tag(s) specified in the path"
     )]
-    Write {
-        #[structopt(long = "artist")]
-        artist: Option<String>,
+    Write(WriteFields),
+}
 
-        #[structopt(long = "album")]
-        album: Option<String>,
+#[derive(Debug, StructOpt)]
+pub struct ReadFields {
+    #[structopt(long = "artist")]
+    artist: bool,
 
-        #[structopt(long = "title")]
-        title: Option<String>,
+    #[structopt(long = "album")]
+    album: bool,
 
-        #[structopt(long = "year")]
-        year: Option<i32>,
-    },
+    #[structopt(long = "title")]
+    title: bool,
+
+    #[structopt(long = "year")]
+    year: bool,
+}
+
+#[derive(Debug, StructOpt)]
+pub struct WriteFields {
+    #[structopt(long = "artist")]
+    artist: Option<String>,
+
+    #[structopt(long = "album")]
+    album: Option<String>,
+
+    #[structopt(long = "title")]
+    title: Option<String>,
+
+    #[structopt(long = "year")]
+    year: Option<i32>,
 }
 
 // TODO - Better error handling
@@ -122,67 +128,8 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
 
     match possible_tag {
         Ok(mut tag) => match &args.cmd {
-            Command::Read {
-                artist,
-                album,
-                title,
-                year,
-            } => {
-                if *artist {
-                    match tag.artist() {
-                        Some(artist) => println!("Artist: {}", artist),
-                        None => println!("Artist: --"),
-                    }
-                }
-
-                if *album {
-                    match tag.album() {
-                        Some(album) => println!("Album: {}", album),
-                        None => println!("Album: --"),
-                    }
-                }
-
-                if *title {
-                    match tag.title() {
-                        Some(title) => println!("Title: {}", title),
-                        None => println!("Title: --"),
-                    }
-                }
-
-                if *year {
-                    match tag.year() {
-                        Some(year) => println!("Year: {}", year),
-                        None => println!("Year: --"),
-                    }
-                }
-
-                println!("----------------")
-            }
-            Command::Write {
-                artist,
-                album,
-                title,
-                year,
-            } => {
-                if artist.is_some() {
-                    tag.set_artist(artist.clone().unwrap());
-                }
-
-                if album.is_some() {
-                    tag.set_album(album.clone().unwrap());
-                }
-
-                if title.is_some() {
-                    tag.set_title(title.clone().unwrap());
-                }
-
-                if year.is_some() {
-                    tag.set_year(year.unwrap());
-                }
-
-                println!("Writing to {:?}", &path);
-                tag.write_to_path(&path, Version::Id3v24).unwrap();
-            }
+            Command::Read(tag_fields) => read_tag_with_args(&tag, &tag_fields),
+            Command::Write(tag_fields) => write_tag_with_args(&mut tag, &tag_fields, &path),
         },
         Err(_err) => {
             // Check if the error is instead related to parsing a ID3v1 tag.
@@ -239,26 +186,21 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
 
             // When the file already has an ID3v2+ tag.
             match &args.cmd {
-                Command::Write {
-                    artist,
-                    album,
-                    title,
-                    year,
-                } => {
-                    if artist.is_some() {
-                        new_tag.set_artist(artist.clone().unwrap());
+                Command::Write(tag_fields) => {
+                    if tag_fields.artist.is_some() {
+                        new_tag.set_artist(tag_fields.artist.clone().unwrap());
                     }
 
-                    if album.is_some() {
-                        new_tag.set_album(album.clone().unwrap());
+                    if tag_fields.album.is_some() {
+                        new_tag.set_album(tag_fields.album.clone().unwrap());
                     }
 
-                    if title.is_some() {
-                        new_tag.set_title(title.clone().unwrap());
+                    if tag_fields.title.is_some() {
+                        new_tag.set_title(tag_fields.title.clone().unwrap());
                     }
 
-                    if year.is_some() {
-                        new_tag.set_year(year.unwrap());
+                    if tag_fields.year.is_some() {
+                        new_tag.set_year(tag_fields.year.unwrap());
                     }
 
                     println!("Writing to {:?}", &path);
@@ -268,4 +210,57 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
             }
         }
     }
+}
+
+pub fn read_tag_with_args(tag: &Tag, command: &ReadFields) {
+    if command.artist {
+        match tag.artist() {
+            Some(artist) => println!("Artist: {}", artist),
+            None => println!("Artist: --"),
+        }
+    }
+
+    if command.album {
+        match tag.album() {
+            Some(album) => println!("Album: {}", album),
+            None => println!("Album: --"),
+        }
+    }
+
+    if command.title {
+        match tag.title() {
+            Some(title) => println!("Title: {}", title),
+            None => println!("Title: --"),
+        }
+    }
+
+    if command.year {
+        match tag.year() {
+            Some(year) => println!("Year: {}", year),
+            None => println!("Year: --"),
+        }
+    }
+
+    println!("----------------")
+}
+
+pub fn write_tag_with_args(tag: &mut Tag, command: &WriteFields, path: &PathBuf) {
+    if command.artist.is_some() {
+        tag.set_artist(command.artist.clone().unwrap());
+    }
+
+    if command.album.is_some() {
+        tag.set_album(command.album.clone().unwrap());
+    }
+
+    if command.title.is_some() {
+        tag.set_title(command.title.clone().unwrap());
+    }
+
+    if command.year.is_some() {
+        tag.set_year(command.year.unwrap());
+    }
+
+    println!("Writing to {:?}", &path);
+    tag.write_to_path(&path, Version::Id3v24).unwrap();
 }
