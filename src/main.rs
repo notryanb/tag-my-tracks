@@ -9,63 +9,9 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
-#[derive(Debug, StructOpt)]
-pub struct Cli {
-    #[structopt(parse(from_os_str))]
-    path: PathBuf,
+pub mod cli;
 
-    #[structopt(subcommand)]
-    cmd: Command,
-}
-
-#[derive(Debug, StructOpt)]
-#[structopt(
-    name = "Command",
-    about = "Read or write fields from the ID3 Tags for a given path."
-)]
-pub enum Command {
-    #[structopt(
-        name = "read",
-        help = "Reads the requested fields from the ID3 tag(s) specified in the path"
-    )]
-    Read(ReadFields),
-
-    #[structopt(
-        name = "write",
-        help = "Writes the requested fields and their values to ID3v2.4 tag(s) specified in the path"
-    )]
-    Write(WriteFields),
-}
-
-#[derive(Debug, StructOpt)]
-pub struct ReadFields {
-    #[structopt(long = "artist")]
-    artist: bool,
-
-    #[structopt(long = "album")]
-    album: bool,
-
-    #[structopt(long = "title")]
-    title: bool,
-
-    #[structopt(long = "year")]
-    year: bool,
-}
-
-#[derive(Debug, StructOpt)]
-pub struct WriteFields {
-    #[structopt(long = "artist")]
-    artist: Option<String>,
-
-    #[structopt(long = "album")]
-    album: Option<String>,
-
-    #[structopt(long = "title")]
-    title: Option<String>,
-
-    #[structopt(long = "year")]
-    year: Option<i32>,
-}
+use cli::{Cli, Command, ReadFields, WriteFields};
 
 // TODO - Better error handling
 fn main() -> CliResult {
@@ -184,7 +130,6 @@ pub fn process_file(args: &Cli, path: &PathBuf) {
                 }
             }
 
-            // When the file already has an ID3v2+ tag.
             match &args.cmd {
                 Command::Write(tag_fields) => {
                     if tag_fields.artist.is_some() {
