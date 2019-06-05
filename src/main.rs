@@ -114,20 +114,36 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
 
             println!("----------------");
         }
-        Err(err) => {
+        Err(_err) => {
             if !fields.convert {
-                return Err(TagParseError::InvalidVersion2Tag(
-                    err.description.to_string(),
-                ));
+                
+                // Implement conversion logic here...
+                let file = std::fs::File::open(path).unwrap();
+                let id3_v1_tag = id3::v1::Tag::read_from(&file);
+
+                match id3_v1_tag {
+                    Ok(tag) => {
+                        println!("Artist: {}", tag.artist);
+                        println!("Album: {}", tag.album);
+                        println!("Title: {}", tag.title);
+                        println!("Year: {}", tag.year);
+                        println!("----------------");
+                        return Ok(());
+                    },
+                    Err(err) => {
+                        return Err(TagParseError::InvalidVersion2Tag(
+                            err.description.to_string(),
+                        ));
+                    }
+                }
+
+
             }
-            println!("Error converting file to ID3v2.4");
 
-            // Implement conversion logic here...
-            // let mut file = std::fs::File::open(path).unwrap();
-            // let id3_v1_tag = id3::v1::Tag::read_from(&file);
+            let file = std::fs::File::open(path).unwrap();
+            let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
-            // dbg!(&id3_v1_tag);
-            // let mut new_tag = Tag::new();
+            dbg!(&id3_v1_tag);
         }
     }
 
@@ -166,7 +182,7 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
             }
             println!("Error converting file to ID3v2.4");
 
-            // Implement conversion logic here...
+            // //Implement conversion logic here...
             // let mut file = std::fs::File::open(path).unwrap();
             // let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
