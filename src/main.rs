@@ -14,7 +14,6 @@ pub mod cli;
 
 use cli::{Cli, Command, ReadFields, WriteFields};
 
-// TODO - Better error handling
 fn main() -> CliResult {
     let args = Cli::from_args();
     let path = &args.path;
@@ -115,35 +114,55 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
             println!("----------------");
         }
         Err(_err) => {
-            if !fields.convert {
-                
-                // Implement conversion logic here...
-                let file = std::fs::File::open(path).unwrap();
-                let id3_v1_tag = id3::v1::Tag::read_from(&file);
+            let file = std::fs::File::open(path).unwrap();
+            let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
+            if !fields.convert {
                 match id3_v1_tag {
                     Ok(tag) => {
-                        println!("Artist: {}", tag.artist);
-                        println!("Album: {}", tag.album);
-                        println!("Title: {}", tag.title);
-                        println!("Year: {}", tag.year);
+                        if fields.artist {
+                            println!("Artist: {}", tag.artist);
+                        }
+
+                        if fields.album {
+                            println!("Album: {}", tag.album);
+                        }
+
+                        if fields.title {
+                            println!("Title: {}", tag.title);
+                        }
+
+                        if fields.year {
+                            println!("Year: {}", tag.year);
+                        }
+
                         println!("----------------");
                         return Ok(());
-                    },
+                    }
                     Err(err) => {
                         return Err(TagParseError::InvalidVersion2Tag(
                             err.description.to_string(),
                         ));
                     }
                 }
-
-
             }
 
-            let file = std::fs::File::open(path).unwrap();
-            let id3_v1_tag = id3::v1::Tag::read_from(&file);
+            let mut new_tag = Tag::new();
 
-            dbg!(&id3_v1_tag);
+            match id3_v1_tag {
+                Ok(tag) => {
+                    new_tag.set_artist(tag.artist);
+                    new_tag.set_album(tag.album);
+                    new_tag.set_title(tag.title);
+                    new_tag.set_year(tag.year.parse::<i32>()?);
+                    new_tag.write_to_path(&path, Version::Id3v24)?;
+                }
+                Err(err) => {
+                    return Err(TagParseError::InvalidVersion2Tag(
+                        err.description.to_string(),
+                    ));
+                }
+            }
         }
     }
 
@@ -180,14 +199,26 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
                     err.description.to_string(),
                 ));
             }
-            println!("Error converting file to ID3v2.4");
 
-            // //Implement conversion logic here...
-            // let mut file = std::fs::File::open(path).unwrap();
-            // let id3_v1_tag = id3::v1::Tag::read_from(&file);
+            let file = std::fs::File::open(path).unwrap();
+            let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
-            // dbg!(&id3_v1_tag);
-            // let mut new_tag = Tag::new();
+            let mut new_tag = Tag::new();
+
+            match id3_v1_tag {
+                Ok(tag) => {
+                    new_tag.set_artist(tag.artist);
+                    new_tag.set_album(tag.album);
+                    new_tag.set_title(tag.title);
+                    new_tag.set_year(tag.year.parse::<i32>()?);
+                    new_tag.write_to_path(&path, Version::Id3v24)?;
+                }
+                Err(err) => {
+                    return Err(TagParseError::InvalidVersion2Tag(
+                        err.description.to_string(),
+                    ));
+                }
+            }
         }
     }
 
@@ -233,5 +264,13 @@ impl From<std::io::Error> for TagParseError {
 impl From<id3::Error> for TagParseError {
     fn from(err: id3::Error) -> TagParseError {
         TagParseError::InvalidVersion2Tag(err.description.to_string())
+    }
+}
+
+impl From<std::num::ParseIntError> for TagParseError {
+    fn from(_err: std::num::ParseIntError) -> TagParseError {
+        TagParseError::InvalidVersion2Tag(String::from(
+            "Failed to parse year from id3v1 tag while converting",
+        ))
     }
 }
