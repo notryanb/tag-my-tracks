@@ -4,9 +4,7 @@ extern crate quicli;
 extern crate structopt;
 extern crate walkdir;
 
-
 use id3::{Tag, Version};
-use failure::Error;
 use quicli::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -26,11 +24,11 @@ fn main() -> CliResult {
     }
 
     if path.is_file() {
-        process_file(&args, &path);
+        process_file(&args, &path)?;
     } else {
         let mp3_paths = get_all_mp3_files_in_directory(&args.path);
         for path in mp3_paths.into_iter() {
-            process_file(&args, &path);
+            process_file(&args, &path)?;
         }
     }
 
@@ -72,106 +70,60 @@ pub fn get_all_mp3_files_in_directory(directory: &Path) -> Vec<PathBuf> {
             -
 
 */
-pub fn process_file(args: &Cli, path: &PathBuf) {
-    // let id3v2_tag = Tag::read_from_path(&path);
-
+pub fn process_file(args: &Cli, path: &PathBuf) -> Result<(), TagParseError> {
     match &args.cmd {
-        Command::Read(tag_fields) => read_tag_with_args(&tag_fields, &path),
-        Command::Write(tag_fields) => write_tag_with_args(&tag_fields, &path),
+        Command::Read(tag_fields) => read_tag_with_args(&tag_fields, &path)?,
+        Command::Write(tag_fields) => write_tag_with_args(&tag_fields, &path)?,
     };
 
-    // match id3v2_tag {
-    //     Ok(mut tag) => match &args.cmd {
-    //         Command::Read(tag_fields) => read_tag_with_args(&tag, &tag_fields),
-    //         Command::Write(tag_fields) => write_tag_with_args(&mut tag, &tag_fields, &path),
-    //     },
-    //     Err(_err) => { // Can't parse an ID3v2.X tag from the path.
-    //         // Check if the error is instead related to parsing a ID3v1 tag.
-    //         let mut file = std::fs::File::open(path).unwrap();
-    //         let id3_v1_tag = id3::v1::Tag::read_from(&file);
-
-    //         dbg!(&id3_v1_tag);
-    //         let mut new_tag = Tag::new();
-
-    //         // Logic for converting / writing ID3v1 to ID3v2.4
-    //         if id3_v1_tag.is_ok() {
-    //             let id3_v1_tag = id3_v1_tag.unwrap();
-    //             let removed_tag = id3::v1::Tag::remove(&mut file);
-
-    //             match removed_tag {
-    //                 Ok(_) => {
-    //                     // Now we must convert from Id3v1 to Id3v2.4
-    //                     println!("Removed Id3v1 tag from {:?}", path);
-    //                     match id3_v1_tag.genre() {
-    //                         Some(genre) => {
-    //                             println!("Genre: {:?}", genre);
-    //                             new_tag.set_genre(genre);
-    //                         }
-    //                         None => {}
-    //                     }
-
-    //                     new_tag.set_artist(id3_v1_tag.artist);
-    //                     new_tag.set_title(id3_v1_tag.title);
-    //                     new_tag.set_album(id3_v1_tag.album);
-    //                     new_tag.set_year(id3_v1_tag.year.parse::<i32>().unwrap());
-
-    //                     match id3_v1_tag.track {
-    //                         Some(track_num) => {
-    //                             new_tag.set_track(track_num as u32);
-    //                         }
-    //                         None => {}
-    //                     }
-
-    //                     println!("Comment: {:?}", id3_v1_tag.comment);
-    //                     let convert_tag_result = new_tag.write_to_path(&path, Version::Id3v24);
-    //                     match convert_tag_result {
-    //                         Ok(_) => {
-    //                             println!("Successfully converted {:?} form v1 tag to v2.4", &path)
-    //                         }
-    //                         Err(err) => println!("Error converting from v1 tag to v2.4: {:?}", err),
-    //                     }
-
-    //                     println!("Converted Id3v1 tag to Id3v2.4")
-    //                 }
-
-    //                 Err(err) => println!("Error removing Id3v1 Tag from {:?}: {:?}", path, err),
-    //             }
-    //         }
-
-    //         // match &args.cmd {
-    //         //     Command::Write(tag_fields) => {
-    //         //         if tag_fields.artist.is_some() {
-    //         //             new_tag.set_artist(tag_fields.artist.clone().unwrap());
-    //         //         }
-
-    //         //         if tag_fields.album.is_some() {
-    //         //             new_tag.set_album(tag_fields.album.clone().unwrap());
-    //         //         }
-
-    //         //         if tag_fields.title.is_some() {
-    //         //             new_tag.set_title(tag_fields.title.clone().unwrap());
-    //         //         }
-
-    //         //         if tag_fields.year.is_some() {
-    //         //             new_tag.set_year(tag_fields.year.unwrap());
-    //         //         }
-
-    //         //         println!("Writing to {:?}", &path);
-    //         //         new_tag.write_to_path(&path, Version::Id3v24).unwrap();
-    //         //     }
-    //         //     _ => println!("Error parsing tag"),
-    //         // }
-    //     }
-    // }
+    Ok(())
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum TagParseError {
-    #[fail(display = "Couldn't parse to ID3v2")]
-    InvalidVersion2Tag,
+    InvalidVersion2Tag(String),
 }
 
-pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Error> {
+impl std::fmt::Display for TagParseError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        match *self {
+            TagParseError::InvalidVersion2Tag(ref f) => write!(
+                fmt,
+                "Couldn't parse ID3v2 tag from  `{}`",
+                f
+            ),
+        }
+    }
+}
+
+impl std::error::Error for TagParseError {
+    fn description(&self) -> &str {
+        match *self {  
+            TagParseError::InvalidVersion2Tag(..) => "Failed to parse tag",
+        }
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+        match *self {
+            _ => None,
+        }
+    }
+}
+
+impl From<std::io::Error> for TagParseError {
+    fn from(err: std::io::Error) -> TagParseError {
+        use std::error::Error;
+        TagParseError::InvalidVersion2Tag(err.description().to_string())
+    }
+}
+
+impl From<id3::Error> for TagParseError {
+    fn from(err: id3::Error) -> TagParseError {
+        TagParseError::InvalidVersion2Tag(err.description.to_string())
+    }
+}
+
+pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), TagParseError> {
     let id3v2_tag = Tag::read_from_path(path);
 
     match id3v2_tag {
@@ -209,9 +161,11 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Err
         },
         Err(err) => {
             if !fields.convert {
-                return Err(TagParseError::InvalidVersion2Tag);
+                return Err(TagParseError::InvalidVersion2Tag(err.description.to_string()));
             }
             println!("Error converting file to ID3v2.4");
+
+            // Implement conversion logic here...
             // let mut file = std::fs::File::open(path).unwrap();
             // let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
@@ -223,11 +177,11 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Err
     Ok(())
 }
 
-pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), Error> {
+pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), TagParseError> {
     let id3v2_tag = Tag::read_from_path(path);
 
     match id3v2_tag {
-        Ok(tag) => { 
+        Ok(mut tag) => { 
             if fields.artist.is_some() {
                 tag.set_artist(fields.artist.clone().unwrap());
             }
@@ -249,9 +203,16 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), E
         },
         Err(err) => {
             if !fields.convert {
-                return Err(TagParseError::InvalidVersion2Tag);
+                return Err(TagParseError::InvalidVersion2Tag(err.description.to_string()));
             }
             println!("Error converting file to ID3v2.4");
+
+            // Implement conversion logic here...
+            // let mut file = std::fs::File::open(path).unwrap();
+            // let id3_v1_tag = id3::v1::Tag::read_from(&file);
+
+            // dbg!(&id3_v1_tag);
+            // let mut new_tag = Tag::new();
         }
     }
 
