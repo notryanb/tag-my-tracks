@@ -1,5 +1,5 @@
-extern crate id3;
 extern crate failure;
+extern crate id3;
 extern crate quicli;
 extern crate structopt;
 extern crate walkdir;
@@ -79,55 +79,11 @@ pub fn process_file(args: &Cli, path: &PathBuf) -> Result<(), TagParseError> {
     Ok(())
 }
 
-#[derive(Debug)]
-pub enum TagParseError {
-    InvalidVersion2Tag(String),
-}
-
-impl std::fmt::Display for TagParseError {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        match *self {
-            TagParseError::InvalidVersion2Tag(ref f) => write!(
-                fmt,
-                "Couldn't parse ID3v2 tag from  `{}`",
-                f
-            ),
-        }
-    }
-}
-
-impl std::error::Error for TagParseError {
-    fn description(&self) -> &str {
-        match *self {  
-            TagParseError::InvalidVersion2Tag(..) => "Failed to parse tag",
-        }
-    }
-
-    fn cause(&self) -> Option<&std::error::Error> {
-        match *self {
-            _ => None,
-        }
-    }
-}
-
-impl From<std::io::Error> for TagParseError {
-    fn from(err: std::io::Error) -> TagParseError {
-        use std::error::Error;
-        TagParseError::InvalidVersion2Tag(err.description().to_string())
-    }
-}
-
-impl From<id3::Error> for TagParseError {
-    fn from(err: id3::Error) -> TagParseError {
-        TagParseError::InvalidVersion2Tag(err.description.to_string())
-    }
-}
-
 pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), TagParseError> {
     let id3v2_tag = Tag::read_from_path(path);
 
     match id3v2_tag {
-        Ok(tag) => {            
+        Ok(tag) => {
             if fields.artist {
                 match tag.artist() {
                     Some(artist) => println!("Artist: {}", artist),
@@ -157,11 +113,12 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
             }
 
             println!("----------------");
-
-        },
+        }
         Err(err) => {
             if !fields.convert {
-                return Err(TagParseError::InvalidVersion2Tag(err.description.to_string()));
+                return Err(TagParseError::InvalidVersion2Tag(
+                    err.description.to_string(),
+                ));
             }
             println!("Error converting file to ID3v2.4");
 
@@ -181,7 +138,7 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
     let id3v2_tag = Tag::read_from_path(path);
 
     match id3v2_tag {
-        Ok(mut tag) => { 
+        Ok(mut tag) => {
             if fields.artist.is_some() {
                 tag.set_artist(fields.artist.clone().unwrap());
             }
@@ -200,10 +157,12 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
 
             println!("Writing to {:?}", &path);
             tag.write_to_path(&path, Version::Id3v24)?;
-        },
+        }
         Err(err) => {
             if !fields.convert {
-                return Err(TagParseError::InvalidVersion2Tag(err.description.to_string()));
+                return Err(TagParseError::InvalidVersion2Tag(
+                    err.description.to_string(),
+                ));
             }
             println!("Error converting file to ID3v2.4");
 
@@ -217,4 +176,46 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
     }
 
     Ok(())
+}
+
+#[derive(Debug)]
+pub enum TagParseError {
+    InvalidVersion2Tag(String),
+}
+
+impl std::fmt::Display for TagParseError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        match *self {
+            TagParseError::InvalidVersion2Tag(ref f) => {
+                write!(fmt, "Couldn't parse ID3v2 tag from  `{}`", f)
+            }
+        }
+    }
+}
+
+impl std::error::Error for TagParseError {
+    fn description(&self) -> &str {
+        match *self {
+            TagParseError::InvalidVersion2Tag(..) => "Failed to parse tag",
+        }
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+        match *self {
+            _ => None,
+        }
+    }
+}
+
+impl From<std::io::Error> for TagParseError {
+    fn from(err: std::io::Error) -> TagParseError {
+        use std::error::Error;
+        TagParseError::InvalidVersion2Tag(err.description().to_string())
+    }
+}
+
+impl From<id3::Error> for TagParseError {
+    fn from(err: id3::Error) -> TagParseError {
+        TagParseError::InvalidVersion2Tag(err.description.to_string())
+    }
 }
