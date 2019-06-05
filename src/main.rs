@@ -113,11 +113,11 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
 
             println!("----------------");
         }
-        Err(_err) => {
+        Err(err) => {
             let file = std::fs::File::open(path).unwrap();
             let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
-            if !fields.convert {
+            if fields.convert {
                 match id3_v1_tag {
                     Ok(tag) => {
                         if fields.artist {
@@ -147,22 +147,9 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
                 }
             }
 
-            let mut new_tag = Tag::new();
-
-            match id3_v1_tag {
-                Ok(tag) => {
-                    new_tag.set_artist(tag.artist);
-                    new_tag.set_album(tag.album);
-                    new_tag.set_title(tag.title);
-                    new_tag.set_year(tag.year.parse::<i32>()?);
-                    new_tag.write_to_path(&path, Version::Id3v24)?;
-                }
-                Err(err) => {
-                    return Err(TagParseError::InvalidVersion2Tag(
-                        err.description.to_string(),
-                    ));
-                }
-            }
+            return Err(TagParseError::InvalidVersion2Tag(
+                err.description.to_string(),
+            ));
         }
     }
 
@@ -204,6 +191,8 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
             let id3_v1_tag = id3::v1::Tag::read_from(&file);
 
             let mut new_tag = Tag::new();
+
+            println!("Converting {:?} to Id3v2.4", &path);
 
             match id3_v1_tag {
                 Ok(tag) => {
