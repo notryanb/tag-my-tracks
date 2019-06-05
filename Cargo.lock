@@ -696,6 +696,7 @@ dependencies = [
 name = "tag-my-tracks"
 version = "0.1.0"
 dependencies = [
+ "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "id3 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quicli 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
