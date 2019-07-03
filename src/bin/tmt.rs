@@ -1,18 +1,10 @@
-extern crate failure;
-extern crate id3;
-extern crate quicli;
-extern crate structopt;
-extern crate walkdir;
-
 use id3::{Tag, Version};
 use quicli::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
-pub mod cli;
-
-use cli::{Cli, Command, ReadFields, WriteFields};
+use tmt::{Cli, Command, ReadFields, WriteFields};
 
 fn main() -> CliResult {
     let args = Cli::from_args();

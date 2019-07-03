@@ -1,12 +1,9 @@
 [package]
-name = "tag-my-tracks"
+name = "tmt"
 version = "0.1.0"
 authors = ["Ryan Blecher <notryanb@gmail.com>"]
+description = "A command line id3 tag management tool"
 edition = "2018"
-
-[[bin]]
-path = "src/main.rs"
-name = "tmt"
 
 [dependencies]
 id3 = "0.3"
