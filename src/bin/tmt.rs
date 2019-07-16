@@ -1,4 +1,5 @@
 use id3::{Tag, Version};
+use std::error::Error;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
@@ -259,8 +260,8 @@ impl From<std::io::Error> for TagParseError {
 }
 
 impl From<TagParseError> for std::io::Error {
-    fn from(_err: TagParseError) -> std::io::Error {
-        std::io::Error::new(std::io::ErrorKind::Other, "There was an error")
+    fn from(err: TagParseError) -> std::io::Error {
+        std::io::Error::new(std::io::ErrorKind::Other, err.description())
     }
 }
 
