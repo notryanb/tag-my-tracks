@@ -43,6 +43,7 @@ pub fn mp3_file_paths(dir_entry: &DirEntry) -> Option<PathBuf> {
 
 pub fn get_all_mp3_files_in_directory(directory: &Path) -> Vec<PathBuf> {
     WalkDir::new(directory)
+        .max_depth(1)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter_map(|e| mp3_file_paths(&e))
@@ -75,7 +76,6 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
 
     match id3v2_tag {
         Ok(tag) => {
-            println!("ID3v2");
             if fields.artist {
                 match tag.artist() {
                     Some(artist) => println!("Artist: {}", artist),
@@ -126,6 +126,13 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
 
                         if fields.album {
                             println!("Album: {}", tag.album);
+                        }
+                        
+                        if fields.track {
+                            match tag.track {
+                                Some(track) => println!("Title: {}", track),
+                                None => println!("Title: --")
+                            }
                         }
 
                         if fields.title {
@@ -254,7 +261,6 @@ impl std::error::Error for TagParseError {
 
 impl From<std::io::Error> for TagParseError {
     fn from(err: std::io::Error) -> TagParseError {
-        use std::error::Error;
         TagParseError::InvalidVersion2Tag(err.description().to_string())
     }
 }
