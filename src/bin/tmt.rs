@@ -72,10 +72,9 @@ pub fn process_file(args: &Cli, path: &PathBuf) -> Result<(), TagParseError> {
 pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), TagParseError> {
     let id3v2_tag = Tag::read_from_path(path);
 
-    println!("Fields: {:?}", &fields);
-
     match id3v2_tag {
         Ok(tag) => {
+            println!("ID3v2");
             if fields.artist {
                 match tag.artist() {
                     Some(artist) => println!("Artist: {}", artist),
@@ -87,6 +86,13 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
                 match tag.album() {
                     Some(album) => println!("Album: {}", album),
                     None => println!("Album: --"),
+                }
+            }
+            
+            if fields.track {
+                match tag.track() {
+                    Some(track) => println!("Track #: {}", track),
+                    None => println!("Track #: --"),
                 }
             }
 
@@ -133,7 +139,7 @@ pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), Tag
                         return Ok(());
                     }
                     Err(err) => {
-                        return Err(TagParseError::InvalidVersion2Tag(
+                        return Err(TagParseError::InvalidVersion1Tag(
                             err.description.to_string(),
                         ));
                     }
@@ -160,6 +166,10 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
 
             if fields.album.is_some() {
                 tag.set_album(fields.album.clone().unwrap());
+            }
+            
+            if fields.track.is_some() {
+                tag.set_track(fields.track.clone().unwrap());
             }
 
             if fields.title.is_some() {
@@ -196,7 +206,7 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
                     new_tag.write_to_path(&path, Version::Id3v24)?;
                 }
                 Err(err) => {
-                    return Err(TagParseError::InvalidVersion2Tag(
+                    return Err(TagParseError::InvalidVersion1Tag(
                         err.description.to_string(),
                     ));
                 }
@@ -209,6 +219,7 @@ pub fn write_tag_with_args(fields: &WriteFields, path: &PathBuf) -> Result<(), T
 
 #[derive(Debug)]
 pub enum TagParseError {
+    InvalidVersion1Tag(String),
     InvalidVersion2Tag(String),
 }
 
@@ -217,6 +228,9 @@ impl std::fmt::Display for TagParseError {
         match *self {
             TagParseError::InvalidVersion2Tag(ref f) => {
                 write!(fmt, "Couldn't parse ID3v2 tag from  `{}`", f)
+            },
+            TagParseError::InvalidVersion1Tag(ref f) => {
+                write!(fmt, "Couldn't parse ID3v1 tag from  `{}`", f)
             }
         }
     }
@@ -225,7 +239,8 @@ impl std::fmt::Display for TagParseError {
 impl std::error::Error for TagParseError {
     fn description(&self) -> &str {
         match *self {
-            TagParseError::InvalidVersion2Tag(..) => "Failed to parse tag",
+            TagParseError::InvalidVersion2Tag(..) => "Failed to parse ID3v2 tag",
+            TagParseError::InvalidVersion1Tag(..) => "Failed to parse ID3v1 tag",
         }
     }
 
