@@ -15,11 +15,23 @@ fn main() -> Result<(), std::io::Error> {
     }
 
     if path.is_file() {
-        process_file(&args, &path)?;
+        match process_file(&args, &path) { 
+            Ok(_) => (),
+            Err(err) => match err {
+                TagParseError::InvalidVersion1Tag(_) => println!("Could not parse `{}` as Id3v1 tag", path.display()),
+                TagParseError::InvalidVersion2Tag(_) => println!("Could not parse `{}` as Id3v2. Try using the `--convert` flag", path.display()),
+            }
+        }
     } else {
         let mp3_paths = get_all_mp3_files_in_directory(&args.path);
         for path in mp3_paths.into_iter() {
-            process_file(&args, &path)?;
+            match process_file(&args, &path) { 
+                Ok(_) => (),
+                Err(err) => match err {
+                    TagParseError::InvalidVersion1Tag(_) => println!("Could not parse `{}` as Id3v1 tag", path.display()),
+                    TagParseError::InvalidVersion2Tag(_) => println!("Could not parse `{}` as Id3v2. Try using the `--convert` flag", path.display()),
+                }
+            }
         }
     }
 
