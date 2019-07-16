@@ -7,7 +7,5 @@ edition = "2018"
 
 [dependencies]
 id3 = "0.3"
-failure = "0.1"
-quicli = "0.4"
 structopt = "0.2"
 walkdir = "2"

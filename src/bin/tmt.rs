@@ -1,17 +1,16 @@
 use id3::{Tag, Version};
-use quicli::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
 use tmt::{Cli, Command, ReadFields, WriteFields};
 
-fn main() -> CliResult {
+fn main() -> Result<(), std::io::Error> {
     let args = Cli::from_args();
     let path = &args.path;
 
     if !path.exists() {
-        warn!("Error: {:?} is not a valid path", &path);
+        println!("Error: {:?} is not a valid path", &path);
     }
 
     if path.is_file() {
@@ -72,6 +71,8 @@ pub fn process_file(args: &Cli, path: &PathBuf) -> Result<(), TagParseError> {
 
 pub fn read_tag_with_args(fields: &ReadFields, path: &PathBuf) -> Result<(), TagParseError> {
     let id3v2_tag = Tag::read_from_path(path);
+
+    println!("Fields: {:?}", &fields);
 
     match id3v2_tag {
         Ok(tag) => {
@@ -239,6 +240,12 @@ impl From<std::io::Error> for TagParseError {
     fn from(err: std::io::Error) -> TagParseError {
         use std::error::Error;
         TagParseError::InvalidVersion2Tag(err.description().to_string())
+    }
+}
+
+impl From<TagParseError> for std::io::Error {
+    fn from(_err: TagParseError) -> std::io::Error {
+        std::io::Error::new(std::io::ErrorKind::Other, "There was an error")
     }
 }
 
