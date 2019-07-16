@@ -36,6 +36,9 @@ pub struct ReadFields {
 
     #[structopt(long = "album")]
     pub album: bool,
+    
+    #[structopt(long = "track")]
+    pub track: bool,
 
     #[structopt(long = "title")]
     pub title: bool,
@@ -57,6 +60,9 @@ pub struct WriteFields {
 
     #[structopt(long = "album")]
     pub album: Option<String>,
+    
+    #[structopt(long = "track")]
+    pub track: Option<u32>,
 
     #[structopt(long = "title")]
     pub title: Option<String>,
